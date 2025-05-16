@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import random
 import socket
 
 import aiodns
@@ -14,56 +16,75 @@ class DomainAvailabilityResult(BaseModel):
     error: str | None = None
 
 
+# these all have to be global variables because of the alru_cache
+_resolver = None
+
+
+def resolver():
+    global _resolver
+    if not _resolver:
+        _resolver = aiodns.DNSResolver()
+    return _resolver
+
+
+@alru_cache(maxsize=256)
+async def get_tld_ns(tld: str) -> list[str]:
+    """Get nameservers for a TLD."""
+    return [r.host for r in await resolver().query(tld, "NS")]
+
+
+@alru_cache(maxsize=256)
+async def resolve_ip(hostname: str) -> str | None:
+    """Resolve hostname to IP addresses with caching."""
+    try:
+        res = await resolver().gethostbyname(hostname, socket.AF_INET)
+        log.info(f"Resolved {hostname} to {res.addresses}")
+        return random.choice(res.addresses)
+    except Exception:
+        return None
+
+
+async def get_ns(domain: str, resolver: aiodns.DNSResolver) -> list[str]:
+    """Get nameservers for a domain with caching."""
+    return [r.host for r in await resolver.query(domain + ".", "NS")]
+
+
+@alru_cache(maxsize=128)
+async def get_resolver_for_tld(tld: str) -> aiodns.DNSResolver:
+    """Get a resolver for a TLD with caching."""
+    tld_ns_names = await get_tld_ns(tld)
+    tld_ns_ips = await asyncio.gather(*[resolve_ip(ns) for ns in tld_ns_names])
+    return aiodns.DNSResolver(nameservers=tld_ns_ips)
+
+
 class DomainAvailability:
     def __init__(self):
-        """Initialize the domain availability checker with caching."""
-        self._resolver = None
+        global _resolver
+        _resolver = None
+        # clear all caches
+        get_tld_ns.cache_clear()
+        resolve_ip.cache_clear()
+        get_resolver_for_tld.cache_clear()
 
-    @property
-    def resolver(self):
-        if not self._resolver:
-            self._resolver = aiodns.DNSResolver()
-        return self._resolver
-
-    @alru_cache(maxsize=128)
-    async def get_ns(self, domain: str, resolver: aiodns.DNSResolver | None = None) -> list[str]:
-        """Get nameservers for a domain with caching."""
-        resolver = resolver or self.resolver
-        try:
-            return [r.host for r in await resolver.query(domain, "NS")]
-        except Exception:
-            return []
-
-    @alru_cache(maxsize=256)
-    async def resolve_ip(
-        self, hostname: str, resolver: aiodns.DNSResolver | None = None
-    ) -> list[str]:
-        """Resolve hostname to IP addresses with caching."""
-        resolver = resolver or self.resolver
-        try:
-            res = await resolver.gethostbyname(hostname, socket.AF_INET)
-            return res.addresses
-        except Exception:
-            return []
-
-    async def authoritative_ns_lookup(self, domain: str) -> list[str] | str:
+    async def authoritative_availability(self, domain: str) -> bool:
         """Perform recursive DNS lookup to find authoritative nameservers."""
-        tld_parts = domain.split(".")[-2:] if domain.endswith(".co.uk") else [domain.split(".")[-1]]
-        tld = ".".join(tld_parts) + "."
-
-        tld_ns_names = await self.get_ns(tld)
-        if not tld_ns_names:
-            return "TLD NS resolution failed"
-
-        tld_ns_ips: list[str] = []
-        for ns in tld_ns_names:
-            tld_ns_ips.extend(await self.resolve_ip(ns))
-
-        if not tld_ns_ips:
-            return "TLD NS IP resolution failed"
-
-        auth_resolver = aiodns.DNSResolver(nameservers=tld_ns_ips)
-        return await self.get_ns(domain, resolver=auth_resolver)
+        log.info(f"Performing authoritative NS lookup for {domain}")
+        tld = ".".join(domain.split(".")[-1:]) + "."
+        resolver = await get_resolver_for_tld(tld)
+        try:
+            await resolver.query(domain + ".", "NS")
+            return True
+        except aiodns.error.DNSError as e:
+            if e.args[0] == 1:  # no records means it's NOT available
+                # this is because aiodns doesn't support authority queries properly
+                return False
+            if e.args[0] in (3, 4):  # NXDOMAIN or no records means it's available
+                return True
+            log.error(f"DNS error performing authoritative NS lookup for {domain}: {e}")
+            return False
+        except Exception as e:
+            log.error(f"Unexpected error performing authoritative NS lookup for {domain}: {e}")
+            return False
 
     async def check_domain(self, domain: str) -> DomainAvailabilityResult:
         """Check if a domain is available using authoritative nameserver lookup.
@@ -75,25 +96,8 @@ class DomainAvailability:
             DomainAvailabilityResult with availability status
         """
         try:
-            # First try direct NS lookup
-            ns_records = await self.get_ns(domain)
-            if ns_records:
-                return DomainAvailabilityResult(domain=domain, is_available=False, error=None)
-
-            # If no direct NS records, try authoritative lookup
-            auth_ns = await self.authoritative_ns_lookup(domain)
-            if isinstance(auth_ns, list) and auth_ns:
-                return DomainAvailabilityResult(domain=domain, is_available=False, error=None)
-
-            # If we get here, domain appears to be available
-            return DomainAvailabilityResult(domain=domain, is_available=True, error=None)
-
-        except aiodns.error.DNSError as e:
-            # If we get NXDOMAIN or no records, domain might be available
-            if e.args[0] in (3, 4):  # NXDOMAIN or no records
-                return DomainAvailabilityResult(domain=domain, is_available=True, error=None)
-            # Other DNS errors mean we can't determine availability
-            return DomainAvailabilityResult(domain=domain, is_available=False, error=str(e))
+            is_available = await self.authoritative_availability(domain)
+            return DomainAvailabilityResult(domain=domain, is_available=is_available)
         except Exception as e:
             log.error(f"Unexpected error checking domain {domain}: {e}")
             return DomainAvailabilityResult(domain=domain, is_available=False, error=str(e))

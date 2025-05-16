@@ -86,10 +86,37 @@ class DomainRequest(BaseModel):
 
 
 class DomainEntry(BaseModel):
+    """Base domain entry model used for AI responses"""
+
     domain: str = Field(..., description="The domain name with TLD")
     reason: str = Field(..., description="Explanation of why this domain is a good fit")
+
+
+class DomainEntryWithAvailability(DomainEntry):
+    """Extended domain entry model that includes availability status"""
+
     is_available: bool = Field(False, description="Whether the domain is available")
 
 
 class Domains(BaseModel):
+    """Base domains model used for AI responses"""
+
     domains: list[DomainEntry] = Field(..., description="A list of domain names with their reasons")
+
+
+class DomainsWithAvailability(BaseModel):
+    """Extended domains model that includes availability status"""
+
+    domains: list[DomainEntryWithAvailability] = Field(
+        ..., description="A list of domain names with their reasons and availability"
+    )
+
+    @classmethod
+    def from_domains(cls, domains: Domains) -> "DomainsWithAvailability":
+        """Convert a Domains model to DomainsWithAvailability"""
+        return cls(
+            domains=[
+                DomainEntryWithAvailability(domain=d.domain, reason=d.reason, is_available=False)
+                for d in domains.domains
+            ]
+        )

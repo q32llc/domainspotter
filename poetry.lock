@@ -244,6 +244,20 @@ files = [
 pycparser = "*"
 
 [[package]]
+name = "click"
+version = "8.2.0"
+description = "Composable command line interface toolkit"
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "click-8.2.0-py3-none-any.whl", hash = "sha256:6b303f0b2aa85f1cb4e5303078fadcbcd4e476f114fab9b5007005711839325c"},
+    {file = "click-8.2.0.tar.gz", hash = "sha256:f5452aeddd9988eefa20f90f05ab66f17fce1ee2a36907fd30b05bbb5953814d"},
+]
+
+[package.dependencies]
+colorama = {version = "*", markers = "platform_system == \"Windows\""}
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
@@ -1414,7 +1428,25 @@ files = [
 [package.dependencies]
 typing-extensions = ">=4.12.0"
 
+[[package]]
+name = "uvicorn"
+version = "0.34.2"
+description = "The lightning-fast ASGI server."
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "uvicorn-0.34.2-py3-none-any.whl", hash = "sha256:deb49af569084536d269fe0a6d67e3754f104cf03aba7c11c40f01aadf33c403"},
+    {file = "uvicorn-0.34.2.tar.gz", hash = "sha256:0e929828f6186353a80b58ea719861d2629d766293b6d19baf086ba31d4f3328"},
+]
+
+[package.dependencies]
+click = ">=7.0"
+h11 = ">=0.8"
+
+[package.extras]
+standard = ["colorama (>=0.4)", "httptools (>=0.6.3)", "python-dotenv (>=0.13)", "pyyaml (>=5.1)", "uvloop (>=0.14.0,!=0.15.0,!=0.15.1)", "watchfiles (>=0.13)", "websockets (>=10.4)"]
+
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "04faf32784d8583d5da25645d7ed5cb4e473e0cf762c8e05a77b4b9a66fbe3d7"
+content-hash = "bd15cee411c3232d350408afe44cd59acc08cef65ead913045b332cc5e9ecc4d"

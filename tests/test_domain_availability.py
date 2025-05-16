@@ -12,7 +12,7 @@ def availability_checker():
 async def test_check_domains(availability_checker):
     # Test with real domains
     domains = [
-        "example.com",  # Should be taken
+        "testapp.com",  # Should be taken, but the ns servers are down, so it relies on proper recursive lookup
         "google.com",  # Should be taken
         "df08hweg08bggwe0h.com",  # Should be available
     ]
@@ -22,8 +22,8 @@ async def test_check_domains(availability_checker):
     # Verify we got results for all domains
     assert len(results) == 3
 
-    # Verify example.com is taken
-    example_result = next(r for r in results if r.domain == "example.com")
+    # Verify testapp.com is taken
+    example_result = next(r for r in results if r.domain == "testapp.com")
     assert not example_result.is_available
     assert example_result.error is None
 

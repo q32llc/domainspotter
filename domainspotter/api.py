@@ -8,7 +8,7 @@ from openai import AsyncOpenAI
 from domainspotter.domain_availability import DomainAvailability
 
 from .domain_search import DomainSearch
-from .models import DomainRequest, Domains, Idea, QuestionRequest, QuestionResponse
+from .models import DomainRequest, DomainsWithAvailability, Idea, QuestionRequest, QuestionResponse
 
 availability = DomainAvailability()
 log = logging.getLogger(__name__)
@@ -31,8 +31,8 @@ async def get_questions(request: QuestionRequest) -> QuestionResponse:
     return QuestionResponse(questions=result.state["questions"])
 
 
-@router.post("/domains", response_model=Domains)
-async def get_domains(request: DomainRequest) -> Domains:
+@router.post("/domains", response_model=DomainsWithAvailability)
+async def get_domains(request: DomainRequest) -> DomainsWithAvailability:
     """Get domain suggestions for a domain idea"""
     domain_search = DomainSearch(AsyncOpenAI())
     idea = Idea(
@@ -45,9 +45,15 @@ async def get_domains(request: DomainRequest) -> Domains:
         created_at=datetime.now(tz=timezone.utc),
     )
 
-    result = await domain_search.get_domain_names(idea)
+    doms = await domain_search.get_domain_names(idea)
+    ret = DomainsWithAvailability.from_domains(doms)
 
-    for domain in result.domains:
-        domain.is_available = await availability.check_domain(domain.domain)
+    all_domains = [d.domain for d in ret.domains]
+    results = await availability.check_domains(all_domains)
 
-    return result
+    map_results = {result.domain: result.is_available for result in results}
+
+    for domain in ret.domains:
+        domain.is_available = map_results[domain.domain]
+
+    return ret
