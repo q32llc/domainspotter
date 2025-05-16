@@ -56,4 +56,6 @@ async def get_domains(request: DomainRequest) -> DomainsWithAvailability:
     for domain in ret.domains:
         domain.is_available = map_results[domain.domain]
 
+    ret.domains = [d for d in ret.domains if d.is_available]
+
     return ret

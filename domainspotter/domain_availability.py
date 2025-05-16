@@ -38,7 +38,6 @@ async def resolve_ip(hostname: str) -> str | None:
     """Resolve hostname to IP addresses with caching."""
     try:
         res = await resolver().gethostbyname(hostname, socket.AF_INET)
-        log.info(f"Resolved {hostname} to {res.addresses}")
         return random.choice(res.addresses)
     except Exception:
         return None
@@ -68,7 +67,6 @@ class DomainAvailability:
 
     async def authoritative_availability(self, domain: str) -> bool:
         """Perform recursive DNS lookup to find authoritative nameservers."""
-        log.info(f"Performing authoritative NS lookup for {domain}")
         tld = ".".join(domain.split(".")[-1:]) + "."
         resolver = await get_resolver_for_tld(tld)
         try:
@@ -80,7 +78,6 @@ class DomainAvailability:
                 return False
             if e.args[0] in (3, 4):  # NXDOMAIN or no records means it's available
                 return True
-            log.error(f"DNS error performing authoritative NS lookup for {domain}: {e}")
             return False
         except Exception as e:
             log.error(f"Unexpected error performing authoritative NS lookup for {domain}: {e}")
@@ -95,12 +92,8 @@ class DomainAvailability:
         Returns:
             DomainAvailabilityResult with availability status
         """
-        try:
-            is_available = await self.authoritative_availability(domain)
-            return DomainAvailabilityResult(domain=domain, is_available=is_available)
-        except Exception as e:
-            log.error(f"Unexpected error checking domain {domain}: {e}")
-            return DomainAvailabilityResult(domain=domain, is_available=False, error=str(e))
+        is_available = await self.authoritative_availability(domain)
+        return DomainAvailabilityResult(domain=domain, is_available=is_available)
 
     async def check_domains(self, domains: list[str]) -> list[DomainAvailabilityResult]:
         """Check multiple domains in parallel.

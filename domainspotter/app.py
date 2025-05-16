@@ -701,3 +701,24 @@ async def not_found_handler(request: Request, exc: Exception):
 from .api import router
 
 app.include_router(router)
+
+
+def should_cache_template_response(request: Request) -> bool:
+    """Return True if this request should have cache headers for template-driven pages."""
+    # Only cache GET/HEAD, not API or static or favicon
+    if request.method not in ("GET", "HEAD"):
+        return False
+    path = request.url.path
+    if path.startswith("/api"):
+        return False
+
+
+@app.middleware("http")
+async def cache_control_middleware(request: Request, call_next):
+    response = await call_next(request)
+    if should_cache_template_response(request):
+        # 1 hour cache, allow stale for 1 day if backend is down, revalidate in background
+        response.headers["Cache-Control"] = (
+            "public, max-age=3600, stale-while-revalidate=3600, stale-if-error=86400"
+        )
+    return response
