@@ -5,7 +5,6 @@ import os
 import time
 import uuid
 from collections.abc import AsyncGenerator
-from urllib.parse import urlparse, urlunparse
 
 import asyncpg
 import httpx
@@ -21,7 +20,7 @@ os.environ["OPENAI_API_KEY"] = os.environ.get("TEST_OPENAI_API_KEY", "fake-key")
 os.environ["JWT_SECRET_KEY"] = os.environ.get("TEST_JWT_SECRET_KEY", "fake-key")
 
 # has to be imported after the env vars are set
-from domainspotter.app import app, hash_auth_request
+from domainspotter.app import app, hash_auth_request  # noqa: E402
 
 log = logging.getLogger(__name__)
 

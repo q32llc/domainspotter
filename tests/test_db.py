@@ -1,8 +1,7 @@
 import uuid
-from datetime import datetime, timezone
+from uuid import UUID
 
 import pytest
-from uuid import UUID
 
 from domainspotter.db import AlreadyExistsError, get_passhash
 from domainspotter.models import Idea, User, UserWithPass
@@ -38,7 +37,7 @@ async def test_get_user_for_auth(db):
     # Create a test user
     username = "auth@example.com"
     password = "password123"
-    user_id = await db.create_user(
+    await db.create_user(
         username=username,
         password=password,
         email=username,
@@ -58,7 +57,7 @@ async def test_get_user_for_auth(db):
 async def test_get_github_user(db):
     # Create a test user with github_id
     github_id = "12345"
-    user_id = await db.create_user(
+    await db.create_user(
         github_id=github_id,
         email="github@example.com",
     )
@@ -174,4 +173,4 @@ async def test_create_lead(db):
     duplicate_lead_id = await db.create_lead(
         email="lead@example.com",
     )
-    assert isinstance(duplicate_lead_id, UUID) 
+    assert isinstance(duplicate_lead_id, UUID)

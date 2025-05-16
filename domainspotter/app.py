@@ -11,16 +11,10 @@ from uuid import UUID
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import (
-    Depends,
-    FastAPI,
-    HTTPException,
-    Request,
-    Response,
-    status,
-)
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
@@ -28,7 +22,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from jose import JWTError, jwt
 from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
 
 # load env vars before loading any app modules
 
@@ -74,7 +67,7 @@ app = FastAPI(
     title="DomainSpotter",
     description="API for generating domain name suggestions",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -84,6 +77,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Custom OpenAPI schema to exclude internal routes
 def custom_openapi():
@@ -312,7 +306,9 @@ def hash_auth_request(username: str, passhash: str, ts: str) -> str:
     return expected_hash
 
 
-async def verify_auth_request(auth_request: AuthRequest, db: DomainspotterDb) -> UserWithPass | None:
+async def verify_auth_request(
+    auth_request: AuthRequest, db: DomainspotterDb
+) -> UserWithPass | None:
     """Verify the authentication request"""
     # Get the user record
     user = await db.get_user_for_auth(auth_request.username)
@@ -615,16 +611,6 @@ async def get_me(current_user: UUID = Depends(get_current_user)):
     }
 
 
-class LeadCreate(BaseModel):
-    """Request model for creating a lead"""
-
-    email: str
-    name: str | None = None
-    phone: str | None = None
-    source: str = "website"
-    metadata: dict[str, Any] | None = None
-
-
 @app.post("/api/leads")
 async def create_lead(
     data: LeadCreate,
@@ -642,6 +628,7 @@ async def create_lead(
         return {"status": "success", "id": str(lead_id)}
     except AlreadyExistsError:
         return {"status": "success", "message": "Email already registered"}
+
 
 class DashboardData(BaseModel):
     """Response model for dashboard data"""
@@ -687,26 +674,30 @@ async def serve_page(page_name: str):
     """Serve template pages"""
     return templates.TemplateResponse("home.html", {"request": {}, "now": datetime.now(UTC)})
 
+
 @app.get("/privacy")
 async def serve_privacy(request: Request):
     """Serve privacy policy page"""
-    return templates.TemplateResponse("privacy.html", {"request": request, "now": datetime.now(UTC)})
+    return templates.TemplateResponse(
+        "privacy.html", {"request": request, "now": datetime.now(UTC)}
+    )
+
 
 @app.get("/terms")
 async def serve_terms(request: Request):
     """Serve terms of service page"""
     return templates.TemplateResponse("terms.html", {"request": request, "now": datetime.now(UTC)})
 
+
 # Add 404 handler
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: Exception):
     """Handle 404 errors"""
     if request.url.path.startswith("/api"):
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={"detail": "Not found"}
-        )
+        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": "Not found"})
     return templates.TemplateResponse("404.html", {"request": request, "now": datetime.now(UTC)})
 
+
 from .api import router
+
 app.include_router(router)

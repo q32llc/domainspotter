@@ -1,9 +1,8 @@
-import uuid
-from datetime import UTC, datetime
-from typing import Any, Literal
+from datetime import datetime
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 class User(BaseModel):
@@ -53,12 +52,14 @@ class Lead(BaseModel):
 
 class IdeaCreate(BaseModel):
     """Request model for creating an idea"""
+
     name: str
     state: dict[str, Any] = {}
 
 
 class LeadCreate(BaseModel):
     """Request model for creating a lead"""
+
     email: str
     name: str | None = None
     phone: str | None = None
@@ -80,12 +81,15 @@ class DomainRequest(BaseModel):
     description: str
     answered_questions: list[dict[str, str]]
 
+
 # used by the domain search and by the app reply format
+
 
 class DomainEntry(BaseModel):
     domain: str = Field(..., description="The domain name with TLD")
     reason: str = Field(..., description="Explanation of why this domain is a good fit")
     is_available: bool = Field(False, description="Whether the domain is available")
+
 
 class Domains(BaseModel):
     domains: list[DomainEntry] = Field(..., description="A list of domain names with their reasons")

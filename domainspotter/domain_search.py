@@ -1,13 +1,12 @@
 import logging
-from typing import Any
-from uuid import UUID
 
 from openai import AsyncOpenAI
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from .models import Domains, Idea
 
 log = logging.getLogger(__name__)
+
 
 class DomainSearch:
     def __init__(self, openai_client: AsyncOpenAI):
@@ -20,7 +19,7 @@ class DomainSearch:
 
         You are an expert in domain names and the best practices for naming a business.
         """
-        
+
         prompt = f"""Given this domain idea, reply with a short list of 2 or 3 additional questions you need answered to
           search for domains.
 
@@ -37,15 +36,19 @@ Reply with a JSON array of questions, example reply:
 """
 
         try:
+
             class Questions(BaseModel):
                 questions: list[str]
 
             response = await self.openai.beta.chat.completions.parse(
                 model="gpt-4.1-mini",
-                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
                 response_format=Questions,
             )
-            
+
             questions: Questions = response.choices[0].message.parsed
             idea.state["questions"] = questions.questions
             return idea
@@ -61,7 +64,7 @@ Reply with a JSON array of questions, example reply:
         You are an expert in domain names and the best practices for naming a business.
         """
 
-        questions = idea.state.get('questions', [])
+        questions = idea.state.get("questions", [])
         if questions:
             extra_prompt = f"""
             Here are some questions that have been answered to help you generate domain names:
@@ -111,7 +114,10 @@ Reply with a JSON array of questions, example reply:
         try:
             response = await self.openai.beta.chat.completions.parse(
                 model="gpt-4.1-mini",
-                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
                 response_format=Domains,
             )
 
@@ -119,5 +125,7 @@ Reply with a JSON array of questions, example reply:
             return domains
         except Exception as e:
             log.error(f"Failed to generate domain names for idea {idea.id}: {e}")
-            log.error(f"Response content: {response.choices[0].message.content if 'response' in locals() else 'No response'}")
+            log.error(
+                f"Response content: {response.choices[0].message.content if 'response' in locals() else 'No response'}"
+            )
             raise e

@@ -79,12 +79,12 @@ document.getElementById('domainForm').addEventListener('submit', async (e) => {
         })
     });
     const data = await response.json();
-    
+
     if (data.questions.length > 0) {
         const questionsDiv = document.getElementById('questions');
         const questionsList = document.getElementById('questionsList');
         questionsList.innerHTML = '';
-        
+
         data.questions.forEach(question => {
             const div = document.createElement('div');
             div.className = 'form-group';
@@ -94,7 +94,7 @@ document.getElementById('domainForm').addEventListener('submit', async (e) => {
             `;
             questionsList.appendChild(div);
         });
-        
+
         questionsDiv.style.display = 'block';
         form.style.display = 'none';
     } else {
@@ -111,7 +111,7 @@ document.getElementById('questionsForm').addEventListener('submit', async (e) =>
             question: el.name.replace('answer_', ''),
             answer: el.value
         }));
-    
+
     const name = document.getElementById('name').value;
     const description = document.getElementById('description').value;
     getDomains(name, description, answers);
@@ -121,11 +121,11 @@ async function getDomains(name, description, answeredQuestions) {
     const resultsDiv = document.getElementById('results');
     const loadingIndicator = document.getElementById('loadingIndicator');
     const domainsList = document.getElementById('domainsList').querySelector('tbody');
-    
+
     resultsDiv.style.display = 'block';
     loadingIndicator.style.display = 'block';
     domainsList.innerHTML = '';
-    
+
     try {
         const response = await fetch('/api/domains', {
             method: 'POST',
@@ -137,7 +137,7 @@ async function getDomains(name, description, answeredQuestions) {
             })
         });
         const data = await response.json();
-        
+
         data.domains.forEach(domain => {
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -167,7 +167,7 @@ document.getElementById('exportButton').addEventListener('click', () => {
             row.cells[1].textContent
         ])
     ].map(row => row.join(',')).join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -288,4 +288,4 @@ document.getElementById('exportButton').addEventListener('click', () => {
     padding: 2rem;
 }
 </style>
-{% endblock %} 
+{% endblock %}

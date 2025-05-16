@@ -11,7 +11,7 @@ import asyncpg
 from openai import AsyncOpenAI
 
 from .migrations import MIGRATIONS
-from .models import  Idea, User, UserWithPass
+from .models import Idea, User, UserWithPass
 
 log = logging.getLogger(__name__)
 
@@ -217,18 +217,19 @@ class DomainspotterDb(Database):
                 )
                 return "DELETE 1" in result
 
-    async def update_idea_state(self, idea_id: UUID, user_id: uuid.UUID, state: dict[str, Any]) -> Idea | None:
+    async def update_idea_state(
+        self, idea_id: UUID, user_id: uuid.UUID, state: dict[str, Any]
+    ) -> Idea | None:
         """Update an idea's state and return the updated idea, merging the new state with the existing state."""
-
 
         idea = await self.get_idea(idea_id, user_id)
         if not idea:
             return None
-        
+
         idea.state = {**idea.state, **state}
-        
+
         query = """
-        UPDATE ideas 
+        UPDATE ideas
         SET state = $1
         WHERE id = $2 AND user_id = $3
         RETURNING id, name, state, created_at
