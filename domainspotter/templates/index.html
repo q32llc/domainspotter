@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block title %}DomainSpotter - Find the Perfect Domain Name{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1>Find the Perfect Domain Name</h1>
+    <p class="subtitle">Get AI-powered domain name suggestions for your next project</p>
+</div>
+
+<div class="card">
+    <form id="domainForm" class="domain-form">
+        <div class="form-group">
+            <label for="name">Project Name</label>
+            <input type="text" id="name" name="name" placeholder="e.g., My Awesome App">
+        </div>
+
+        <div class="form-group">
+            <label for="description">Project Description</label>
+            <textarea id="description" name="description" rows="3" placeholder="Describe your project..."></textarea>
+        </div>
+
+        <button type="submit" id="submitButton" disabled>Get Domain Suggestions</button>
+    </form>
+</div>
+
+<div id="questions" class="card" style="display: none;">
+    <h2>Additional Questions</h2>
+    <form id="questionsForm">
+        <div id="questionsList"></div>
+        <button type="submit">Get Domain Suggestions</button>
+    </form>
+</div>
+
+<div id="results" class="card" style="display: none;">
+    <h2>Domain Suggestions</h2>
+    <div class="results-header">
+        <button id="exportButton" class="secondary-button">Export CSV</button>
+    </div>
+    <div id="loadingIndicator" style="display: none;">
+        <div class="spinner"></div>
+        <p>Generating domain suggestions...</p>
+    </div>
+    <table id="domainsList" class="domains-table">
+        <thead>
+            <tr>
+                <th>Domain</th>
+                <th>Reason</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Add input validation
+function validateForm() {
+    const name = document.getElementById('name').value.trim();
+    const description = document.getElementById('description').value.trim();
+    const submitButton = document.getElementById('submitButton');
+    submitButton.disabled = !(name || description);
+}
+
+document.getElementById('name').addEventListener('input', validateForm);
+document.getElementById('description').addEventListener('input', validateForm);
+
+document.getElementById('domainForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const response = await fetch('/api/questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            name: form.name.value,
+            description: form.description.value
+        })
+    });
+    const data = await response.json();
+    
+    if (data.questions.length > 0) {
+        const questionsDiv = document.getElementById('questions');
+        const questionsList = document.getElementById('questionsList');
+        questionsList.innerHTML = '';
+        
+        data.questions.forEach(question => {
+            const div = document.createElement('div');
+            div.className = 'form-group';
+            div.innerHTML = `
+                <label>${question}</label>
+                <input type="text" name="answer_${question}" required>
+            `;
+            questionsList.appendChild(div);
+        });
+        
+        questionsDiv.style.display = 'block';
+        form.style.display = 'none';
+    } else {
+        getDomains(form.name.value, form.description.value, []);
+    }
+});
+
+document.getElementById('questionsForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const answers = Array.from(form.elements)
+        .filter(el => el.name.startsWith('answer_'))
+        .map(el => ({
+            question: el.name.replace('answer_', ''),
+            answer: el.value
+        }));
+    
+    const name = document.getElementById('name').value;
+    const description = document.getElementById('description').value;
+    getDomains(name, description, answers);
+});
+
+async function getDomains(name, description, answeredQuestions) {
+    const resultsDiv = document.getElementById('results');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const domainsList = document.getElementById('domainsList').querySelector('tbody');
+    
+    resultsDiv.style.display = 'block';
+    loadingIndicator.style.display = 'block';
+    domainsList.innerHTML = '';
+    
+    try {
+        const response = await fetch('/api/domains', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name,
+                description,
+                answered_questions: answeredQuestions
+            })
+        });
+        const data = await response.json();
+        
+        data.domains.forEach(domain => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${domain.domain}</td>
+                <td>${domain.reason}</td>
+                <td><span class="trash-icon" onclick="removeDomain(this)">🗑️</span></td>
+            `;
+            domainsList.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Error fetching domains:', error);
+    } finally {
+        loadingIndicator.style.display = 'none';
+    }
+}
+
+function removeDomain(element) {
+    element.closest('tr').remove();
+}
+
+document.getElementById('exportButton').addEventListener('click', () => {
+    const rows = document.querySelectorAll('#domainsList tbody tr');
+    const csvContent = [
+        ['Domain', 'Reason'],
+        ...Array.from(rows).map(row => [
+            row.cells[0].textContent,
+            row.cells[1].textContent
+        ])
+    ].map(row => row.join(',')).join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'domain-suggestions.csv';
+    link.click();
+});
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.hero {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.hero h1 {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.subtitle {
+    font-size: 1.25rem;
+    color: #64748b;
+}
+
+.domain-form {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.domain-item {
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    margin-bottom: 1rem;
+}
+
+.domain-item h3 {
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.domain-item p {
+    color: #64748b;
+}
+
+.domains-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.domains-table th,
+.domains-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.domains-table th {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.domains-table td:last-child {
+    width: 40px;
+    text-align: center;
+}
+
+.trash-icon {
+    color: #ef4444;
+    cursor: pointer;
+    padding: 0.25rem;
+}
+
+.trash-icon:hover {
+    color: #dc2626;
+}
+
+.results-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+}
+
+.secondary-button {
+    background-color: #f3f4f6;
+    color: #374151;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    border: 1px solid #d1d5db;
+    cursor: pointer;
+}
+
+.secondary-button:hover {
+    background-color: #e5e7eb;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 2rem auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#loadingIndicator {
+    text-align: center;
+    padding: 2rem;
+}
+</style>
+{% endblock %} 
