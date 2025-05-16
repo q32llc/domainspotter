@@ -15,10 +15,17 @@
                 <span>DomainSpotter</span>
             </a>
             <nav>
-                <a href="/">Home</a>
-                <a href="/privacy">Privacy</a>
-                <a href="/terms">Terms</a>
+                <a href="/" class="nav-link">Home</a>
+                <button class="menu-toggle" aria-label="Toggle menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
             </nav>
+        </div>
+        <div class="mobile-menu">
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
         </div>
     </header>
 
@@ -30,10 +37,20 @@
 
     <footer>
         <div class="container">
+            <div class="footer-links">
+                <a href="/privacy">Privacy</a>
+                <a href="/terms">Terms</a>
+            </div>
             <p>&copy; {{ now.year }} DomainSpotter. All rights reserved.</p>
         </div>
     </footer>
 
+    <script>
+        document.querySelector('.menu-toggle').addEventListener('click', function() {
+            document.querySelector('.mobile-menu').classList.toggle('active');
+            this.classList.toggle('active');
+        });
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
